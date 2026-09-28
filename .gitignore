@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.exe
+*.zip
+*.log
+frames_test/
+%SystemDrive%/
+f0_crop.png
+taffy_user_crop.png
+petdex-desktop.exe
+.DS_Store
+Thumbs.db

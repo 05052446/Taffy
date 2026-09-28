@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>永雏塔菲 Taffy 桌宠动作预览与测试</title>
+  <style>
+    :root {
+      --primary: #f472b6;
+      --primary-dark: #db2777;
+      --bg: #18181b;
+      --surface: #27272a;
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 30px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      color: var(--primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .main-container {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .stage-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    /* 棋盘格透明背景模拟 */
+    .viewport-box {
+      width: 260px;
+      height: 260px;
+      background-image: 
+        linear-gradient(45deg, #1f1f23 25%, transparent 25%),
+        linear-gradient(-45deg, #1f1f23 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1f1f23 75%),
+        linear-gradient(-45deg, transparent 75%, #1f1f23 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      background-color: #141417;
+      border-radius: 16px;
+      border: 2px dashed rgba(244, 114, 182, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .viewport-box:active {
+      cursor: grabbing;
+    }
+
+    /* 精灵图切帧核心 */
+    /* 精灵图规格：总宽 1536px, 8 列 -> 每一帧宽 192px */
+    /* 总高 1872px, 9 行 -> 每一行高 208px */
+    .sprite {
+      width: 192px;
+      height: 208px;
+      background-image: url('spritesheet.webp');
+      background-repeat: no-repeat;
+      image-rendering: pixelated;
+      transform-origin: center center;
+      transition: transform 0.15s ease;
+    }
+
+    .controls-panel {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .control-group {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-group label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .action-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .action-btn:hover {
+      background: rgba(244, 114, 182, 0.15);
+      border-color: var(--primary);
+    }
+
+    .action-btn.active {
+      background: var(--primary);
+      color: #fff;
+      font-weight: bold;
+      border-color: var(--primary-dark);
+      box-shadow: 0 0 12px rgba(244, 114, 182, 0.4);
+    }
+
+    input[type="range"] {
+      accent-color: var(--primary);
+      width: 100%;
+    }
+
+    .bubble {
+      position: absolute;
+      top: -30px;
+      background: white;
+      color: #18181b;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: all 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+
+    .bubble.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .footer-tips {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🐰 永雏塔菲 (Taffy) 精灵图交互预览</h1>
+    <p>当前来源：Petdex 社区资产包 · 规格：1536x1872 (8帧/动作 × 9套动作)</p>
+  </header>
+
+  <div class="main-container">
+    <div class="stage-card">
+      <div class="bubble" id="chatBubble">你好呀！雏草姬！</div>
+      
+      <div class="viewport-box" id="dragBox">
+        <div class="sprite" id="petSprite"></div>
+      </div>
+
+      <div class="controls-panel">
+        <!-- 动作切换 -->
+        <div class="control-group" style="grid-column: 1 / -1;">
+          <label>当前动作切换：<span id="stateName">待机 (Idle)</span></label>
+          <div class="actions-grid">
+            <button class="action-btn active" data-row="0">0. 待机 (Idle)</button>
+            <button class="action-btn" data-row="1">1. 行走 (Walk)</button>
+            <button class="action-btn" data-row="2">2. 奔跑 (Run)</button>
+            <button class="action-btn" data-row="3">3. 敲代码/思考 (Work)</button>
+            <button class="action-btn" data-row="4">4. 开心/庆祝 (Happy)</button>
+            <button class="action-btn" data-row="5">5. 警惕/惊吓 (Alert)</button>
+            <button class="action-btn" data-row="6">6. 犯困/发呆 (Sleepy)</button>
+            <button class="action-btn" data-row="7">7. 睡觉 (Sleeping)</button>
+            <button class="action-btn" data-row="8">8. 特殊互动 (Special)</button>
+          </div>
+        </div>
+
+        <!-- 缩放控制 -->
+        <div class="control-group">
+          <label>画面缩放：<span id="scaleVal">1.0x</span></label>
+          <input type="range" id="scaleRange" min="0.5" max="2.0" step="0.1" value="1.0">
+        </div>
+
+        <!-- 播放速度 -->
+        <div class="control-group">
+          <label>帧间隔速度：<span id="speedVal">125ms</span></label>
+          <input type="range" id="speedRange" min="60" max="300" step="10" value="125">
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-tips">
+      💡 提示：你的桌面上已经有一个用 PyQt5 启动的透明置顶桌宠窗口在同步运行！你可以用鼠标直接拖拽它，右键还可以切换动作或调整大小。
+    </div>
+  </div>
+
+  <script>
+    const sprite = document.getElementById('petSprite');
+    const stateNameSpan = document.getElementById('stateName');
+    const scaleRange = document.getElementById('scaleRange');
+    const scaleVal = document.getElementById('scaleVal');
+    const speedRange = document.getElementById('speedRange');
+    const speedVal = document.getElementById('speedVal');
+    const actionBtns = document.querySelectorAll('.action-btn');
+    const bubble = document.getElementById('chatBubble');
+    const dragBox = document.getElementById('dragBox');
+
+    const FRAME_W = 192;
+    const FRAME_H = 208;
+    const TOTAL_COLS = 8;
+
+    let currentRow = 0;
+    let currentCol = 0;
+    let frameInterval = 125;
+    let timerId = null;
+
+    const phrases = [
+      "最喜欢你啦！",
+      "今天写了几行 Bug 呀？",
+      "塔菲才没有摸鱼呢！",
+      "不要戳我脑袋啦！",
+      "困了困了...呼呼呼...",
+      "吃饱饱，没烦恼~"
+    ];
+
+    const ROW_FRAMES = [6, 8, 8, 4, 5, 8, 6, 6, 6];
+
+    // 更新一帧
+    function step() {
+      const maxCols = ROW_FRAMES[currentRow] || 6;
+      currentCol = (currentCol + 1) % maxCols;
+      const xOffset = -(currentCol * FRAME_W);
+      const yOffset = -(currentRow * FRAME_H);
+      sprite.style.backgroundPosition = `${xOffset}px ${yOffset}px`;
+    }
+
+    function startAnimation() {
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(step, frameInterval);
+    }
+
+    // 动作切换
+    actionBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        actionBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentRow = parseInt(btn.getAttribute('data-row'), 10);
+        stateNameSpan.textContent = btn.textContent;
+        currentCol = 0;
+        step();
+      });
+    });
+
+    // 缩放
+    scaleRange.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      scaleVal.textContent = val.toFixed(1) + 'x';
+      sprite.style.transform = `scale(${val})`;
+    });
+
+    // 速度
+    speedRange.addEventListener('input', (e) => {
+      frameInterval = parseInt(e.target.value, 10);
+      speedVal.textContent = frameInterval + 'ms';
+      startAnimation();
+    });
+
+    // 点击戳戳互动
+    dragBox.addEventListener('click', () => {
+      const randomText = phrases[Math.floor(Math.random() * phrases.length)];
+      bubble.textContent = randomText;
+      bubble.classList.add('show');
+      setTimeout(() => bubble.classList.remove('show'), 2000);
+    });
+
+    // 启动
+    startAnimation();
+  </script>
+</body>
+</html>
